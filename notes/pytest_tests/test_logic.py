@@ -3,6 +3,7 @@ import pytest
 
 from pytest_django.asserts import assertRedirects, assertFormError
 from django.urls import reverse
+from pytils.translit import slugify
 
 from notes.models import Note
 from notes.forms import WARNING
@@ -45,3 +46,19 @@ def test_not_unique_slug(author_client, note, form_data):
         errors=(note.slug + WARNING),
     )
     assert Note.objects.count() == 1
+
+
+def test_empty_slug(author_client, form_data):
+    url = reverse("notes:add")
+    # Убираем поле slug из словаря:
+    form_data.pop("slug")
+    response = author_client.post(url, data=form_data)
+    # Проверяем, что даже без slug заметка была создана:
+    assertRedirects(response, reverse("notes:success"))
+    assert Note.objects.count() == 1
+    # Получаем созданную заметку из базы:
+    new_note = Note.objects.get()
+    # Формируем ожидаемый slug:
+    expected_slug = slugify(form_data["title"])
+    # Проверяем, что slug заметки соответствует ожидаемому:
+    assert new_note.slug == expected_slug

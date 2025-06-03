@@ -3,6 +3,7 @@ from http import HTTPStatus
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from pytils.translit import slugify
 
 from notes.forms import WARNING
 from notes.models import Note
@@ -84,6 +85,22 @@ class TestLogiCreate(TestCase):
             errors=(note.slug + WARNING),
         )
         self.assertEqual(Note.objects.count(), 1)
+
+    def test_empty_slug(self):
+        new_form_data = dict(self.FORM_DATA)
+        new_form_data.pop("slug")
+
+        response = self.author_client.post(
+            self.NOTE_ADD,
+            data=new_form_data,
+        )
+
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertRedirects(response, reverse("notes:success"))
+        self.assertEqual(Note.objects.count(), 1)
+        new_note = Note.objects.get()
+        expected_slug = slugify(new_form_data["title"])
+        self.assertEqual(new_note.slug, expected_slug)
 
 
 class TestLogicUpdateDelete(TestCase):
