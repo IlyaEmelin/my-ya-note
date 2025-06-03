@@ -1,9 +1,11 @@
 from http import HTTPStatus
 
 from django.test import Client, TestCase
-from notes.models import Note
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+
+from notes.forms import WARNING
+from notes.models import Note
 
 User = get_user_model()
 
@@ -60,6 +62,28 @@ class TestLogiCreate(TestCase):
                             note.__dict__.get(key),
                             self.FORM_DATA.get(key),
                         )
+
+    def test_not_unique_slug(self):
+        """Нельзя создать две заметки с одинаковым slug"""
+        # Добавление первой заметки
+        note = Note.objects.create(
+            title="Заголовок",
+            text="Текст заметки",
+            slug="slug",
+            author=self.author,
+        )
+
+        # Добавление 2-й заметки
+        response = self.author_client.post(
+            self.NOTE_ADD,
+            data=self.FORM_DATA,
+        )
+        self.assertFormError(
+            response.context["form"],
+            "slug",
+            errors=(note.slug + WARNING),
+        )
+        self.assertEqual(Note.objects.count(), 1)
 
 
 class TestLogicUpdateDelete(TestCase):
