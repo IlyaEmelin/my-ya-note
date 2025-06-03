@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import TestCase
 from django.urls import reverse
 
 from notes.models import Note
@@ -71,7 +71,9 @@ class TestRouter(TestCase):
                 self.assertRedirects(
                     response,
                     redirect_url,
-                    msg_prefix=(f"Не происходить редирект на страницу : {login_url}"),
+                    msg_prefix=(
+                        f"Не происходить редирект на страницу : {login_url}"
+                    ),
                 )
 
     def test_pages_authorized_user_availability(self):
