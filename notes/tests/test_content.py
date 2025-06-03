@@ -36,9 +36,7 @@ class TestNotesList(TestCase):
         Note.objects.bulk_create(all_notes)
 
     def test_author_notes(self):
-        """
-        Тестирование списка заметок автора
-        """
+        """Тестирование списка заметок автора"""
         self.client.force_login(self.author)
         response = self.client.get(self.NOTES_LIST_URL)
         notes = response.context.get("object_list")
@@ -64,9 +62,7 @@ class TestNotesList(TestCase):
         )
 
     def test_user_notes(self):
-        """
-        Тестирование списка заметок автора
-        """
+        """Тестирование списка заметок автора"""
         self.client.force_login(self.user)
         response = self.client.get(self.NOTES_LIST_URL)
         notes = response.context.get("object_list")
