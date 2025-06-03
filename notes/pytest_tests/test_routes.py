@@ -3,21 +3,7 @@ from http import HTTPStatus
 import pytest
 from django.urls import reverse
 from pytest_lazy_fixtures import lf
-
-# @pytest.mark.parametrize(
-#     "name",
-#     (
-#         "notes:home",
-#         "users:login",
-#         # "users:logout",  # Ошибка в уроках разлогирование не работает
-#         "users:signup",
-#     ),
-# )
-# def test_pages_availability_for_anonymous_user(client, name):
-#     url = reverse(name)
-#     response = client.get(url)
-#     assert response.status_code == HTTPStatus.OK
-
+from pytest_django.asserts import assertRedirects
 
 @pytest.mark.parametrize(
     "parametrized_client, expected_status",
@@ -36,3 +22,23 @@ def test_pages_availability_for_different_users(
     url = reverse(name, args=(note.slug,))
     response = parametrized_client.get(url)
     assert response.status_code == expected_status
+
+@pytest.mark.parametrize(
+    'name, args',
+    (
+        ('notes:detail', lf('slug_for_args')),
+        ('notes:edit', lf('slug_for_args')),
+        ('notes:delete', lf('slug_for_args')),
+        ('notes:add', None),
+        ('notes:success', None),
+        ('notes:list', None),
+    ),
+)
+# Передаём в тест анонимный клиент, name проверяемых страниц и args:
+def test_redirects(client, name, args):
+    login_url = reverse('users:login')
+    # Теперь не надо писать никаких if и можно обойтись одним выражением.
+    url = reverse(name, args=args)
+    expected_url = f'{login_url}?next={url}'
+    response = client.get(url)
+    assertRedirects(response, expected_url)
