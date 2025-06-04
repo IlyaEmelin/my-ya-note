@@ -189,6 +189,10 @@ class TestLogicUpdateDelete(TestCase):
         self.assertEqual(
             response.status_code,
             HTTPStatus.FOUND,
+            msg=(
+                "После обновления должен быть "
+                "переход на страницу завершения действия"
+            ),
         )
         self.assertRedirects(response, self.url_notes_success)
 
@@ -223,21 +227,57 @@ class TestLogicUpdateDelete(TestCase):
             data=self.new_form_data,
         )
 
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.NOT_FOUND,
+            msg="Обновлять чужие заметки запрещено",
+        )
         note_from_db = Note.objects.get(id=self.note.id)
-        self.assertEqual(self.note.title, note_from_db.title)
-        self.assertEqual(self.note.text, note_from_db.text)
-        self.assertEqual(self.note.slug, note_from_db.slug)
+        msg = "Обновление не произошло поля должны совпадать{0}"
+        self.assertEqual(
+            self.note.title,
+            note_from_db.title,
+            msg.format("title"),
+        )
+        self.assertEqual(
+            self.note.text,
+            note_from_db.text,
+            msg.format("text"),
+        )
+        self.assertEqual(
+            self.note.slug,
+            note_from_db.slug,
+            msg.format("slug"),
+        )
 
     def test_author_can_delete_note(self):
         """Не автор не может удалить"""
         response = self.author_client.post(self.url_notes_delete)
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-        self.assertEqual(Note.objects.count(), 0)
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.FOUND,
+            msg=(
+                "После удаления должен быть "
+                "переход на страницу завершения действия"
+            ),
+        )
+        self.assertEqual(
+            Note.objects.count(),
+            0,
+            msg="После удаления в базе не должно остаться данных",
+        )
         self.assertRedirects(response, self.url_notes_success)
 
     def test_other_user_cant_delete_note(self):
         """Не автор не может удалить заметку"""
         response = self.another_client.post(self.url_notes_delete)
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-        self.assertEqual(Note.objects.count(), 1)
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.NOT_FOUND,
+            msg="Удаление запрещено, поэтому страница не найдена",
+        )
+        self.assertEqual(
+            Note.objects.count(),
+            1,
+            msg="Действие запрещено поэтому заметка осталась в базе",
+        )
