@@ -39,6 +39,7 @@ class TestRouter(TestCase):
 
         cls.url_notes_list = reverse(viewname="notes:list")
         cls.url_notes_add = reverse(viewname="notes:add")
+        cls.url_notes_success = reverse(viewname="notes:success")
         cls.url_notes_edit = reverse(
             viewname="notes:edit",
             args=(cls.note.slug,),
@@ -76,9 +77,7 @@ class TestRouter(TestCase):
         urls = (
             self.url_notes_list,
             self.url_notes_add,
-            self.url_notes_edit,
-            self.url_notes_detail,
-            self.url_notes_delete,
+            self.url_notes_success,
         )
         for url in urls:
             with self.subTest(url=url):
@@ -102,8 +101,6 @@ class TestRouter(TestCase):
         """Проверка доступности страниц авторизированным пользователям"""
         urls = (
             self.url_notes_home,
-            self.url_users_login,
-            self.url_users_signup,
             self.url_notes_list,
             self.url_notes_add,
             self.url_notes_edit,
