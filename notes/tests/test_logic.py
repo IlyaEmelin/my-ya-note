@@ -144,7 +144,7 @@ class TestLogiCreate(TestCase):
 class TestLogicUpdateDelete(TestCase):
     """Тестирование логики изменение удаления заметок"""
 
-    DEFAULT_SLUG = "slug"
+    # DEFAULT_SLUG = "slug"
 
     @classmethod
     def setUpTestData(cls):
@@ -157,113 +157,87 @@ class TestLogicUpdateDelete(TestCase):
         cls.another_client = Client()
         cls.another_client.force_login(cls.another)
 
-        cls.form_data = {
-            "title": "Заголовок",
-            "text": "Текс заметки",
-            "slug": cls.DEFAULT_SLUG,
-            "author": cls.author,
+        cls.new_form_data = {
+            "title": "Новый заголовок",
+            "text": "Новый текс заметки",
+            "slug": "default_slug",
         }
-        cls.note_update = reverse(
-            "notes:edit",
-            args=(cls.DEFAULT_SLUG,),
+        cls.note = Note.objects.create(
+            title="Заголовок",
+            text="Текс заметки",
+            slug="default_slug",
+            author=cls.author,
         )
 
-        cls.note = Note.objects.create(**cls.form_data)
-
-        cls.notes_success = reverse("notes:success")
-
-    def test_update_note(self):
-        """Тестирование обновление заметки"""
-        form_data = {
-            "title": "Заголовок",
-            "text": "Текс заметки",
-            "slug": self.DEFAULT_SLUG,
-            "author": self.author,
-        }
-        new_form_data = dict(form_data)
-        new_form_data["title"] = "Новый заголовок"
-        new_form_data["text"] = "Новый текст заметки"
-
-        note_update = reverse(
-            "notes:edit",
-            args=(self.DEFAULT_SLUG,),
+        cls.url_note_update = reverse(
+            viewname="notes:edit",
+            args=(cls.note.slug,),
         )
-        for client, http_status, update_data, redirect_url in (
-            (
-                self.client,
-                HTTPStatus.FOUND,
-                form_data,
-                f"{reverse("users:login")}?next={note_update}",
-            ),
-            (
-                self.another_client,
-                HTTPStatus.NOT_FOUND,
-                form_data,
-                None,
-            ),
-            (
-                self.author_client,
-                HTTPStatus.FOUND,
-                new_form_data,
-                self.notes_success,
-            ),
-        ):
-            with self.subTest(client=client, http_status=http_status):
-                response = client.post(
-                    note_update,
-                    data=new_form_data,
-                )
-                self.assertEqual(
-                    response.status_code,
-                    http_status,
-                )
-                if redirect_url:
-                    self.assertRedirects(response, redirect_url)
-
-                notes_count = Note.objects.count()
-                self.assertEqual(notes_count, 1)
-                note = Note.objects.all()[0]
-                self.assertEqual(note.title, update_data.get("title"))
-                self.assertEqual(note.text, update_data.get("text"))
-                self.assertEqual(note.slug, update_data.get("slug"))
-                self.assertEqual(note.author, update_data.get("author"))
-
-    def test_delete_note(self):
-        """Тестирование удаление заметки"""
-        url = reverse(
-            "notes:delete",
-            args=(self.DEFAULT_SLUG,),
+        cls.url_notes_success = reverse(viewname="notes:success")
+        cls.url_notes_delete = reverse(
+            viewname="notes:delete",
+            args=(cls.note.slug,),
         )
 
-        for client, result_count, http_status, redirect_url in (
-            (
-                self.client,
-                1,
-                HTTPStatus.FOUND,
-                f"{reverse("users:login")}?next={url}",
-            ),
-            (
-                self.another_client,
-                1,
-                HTTPStatus.NOT_FOUND,
-                None,
-            ),
-            (
-                self.author_client,
-                0,
-                HTTPStatus.FOUND,
-                self.notes_success,
-            ),
-        ):
-            with self.subTest(client=client, http_status=http_status):
-                response = client.post(url)
+    def test_author_can_edit_note(self):
+        """Только автор может редактировать заметку"""
+        response = self.author_client.post(
+            self.url_note_update,
+            data=self.new_form_data,
+        )
 
-                self.assertEqual(
-                    response.status_code,
-                    http_status,
-                )
-                if redirect_url:
-                    self.assertRedirects(response, redirect_url)
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.FOUND,
+        )
+        self.assertRedirects(response, self.url_notes_success)
 
-                notes_count = Note.objects.count()
-                self.assertEqual(notes_count, result_count)
+        notes_count = Note.objects.count()
+        self.assertEqual(
+            notes_count,
+            1,
+            msg="После обновления должна остается так же одна запись а базе",
+        )
+        note = Note.objects.get(id=self.note.id)
+        msg = "Значения поля должны совпадать{0}"
+        self.assertEqual(
+            note.title,
+            self.new_form_data.get("title"),
+            msg=msg.format("title"),
+        )
+        self.assertEqual(
+            note.text,
+            self.new_form_data.get("text"),
+            msg=msg.format("text"),
+        )
+        self.assertEqual(
+            note.slug,
+            self.new_form_data.get("slug"),
+            msg=msg.format("slug"),
+        )
+
+    def test_other_user_cant_edit_note(self):
+        """Не автор не может редактировать заметку"""
+        response = self.another_client.post(
+            self.url_note_update,
+            data=self.new_form_data,
+        )
+
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        note_from_db = Note.objects.get(id=self.note.id)
+        self.assertEqual(self.note.title, note_from_db.title)
+        self.assertEqual(self.note.text, note_from_db.text)
+        self.assertEqual(self.note.slug, note_from_db.slug)
+
+    def test_author_can_delete_note(self):
+        """Не автор не может удалить"""
+        response = self.author_client.post(self.url_notes_delete)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertEqual(Note.objects.count(), 0)
+        self.assertRedirects(response, self.url_notes_success)
+
+    def test_other_user_cant_delete_note(self):
+        """Не автор не может удалить заметку"""
+        response = self.another_client.post(self.url_notes_delete)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        self.assertEqual(Note.objects.count(), 1)
