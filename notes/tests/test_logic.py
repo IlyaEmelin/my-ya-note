@@ -27,66 +27,104 @@ class TestLogiCreate(TestCase):
         cls.author_client = Client()
         cls.author_client.force_login(cls.author)
 
-    def test_create_node(self):
-        """Создание заметок"""
-        for client, http_status, count_node, redirect_url in (
-            (
-                self.client,
-                HTTPStatus.FOUND,
-                0,
-                f"{reverse("users:login")}?next={self.NOTE_ADD}",
-            ),
-            (
-                self.author_client,
-                HTTPStatus.FOUND,
-                1,
-                reverse("notes:success"),
-            ),
-        ):
-            with self.subTest(client=client, http_status=http_status):
-                response = client.post(
-                    self.NOTE_ADD,
-                    data=self.FORM_DATA,
-                )
-                self.assertEqual(
-                    response.status_code,
-                    http_status,
-                )
-                self.assertRedirects(response, redirect_url)
+        cls.notes_success = reverse("notes:success")
 
-                note_count = Note.objects.count()
-                self.assertEqual(note_count, count_node)
-                if count_node:
-                    note = Note.objects.all()[0]
-                    for key in self.FORM_DATA.keys():
-                        self.assertEqual(
-                            note.__dict__.get(key),
-                            self.FORM_DATA.get(key),
-                        )
-
-    def test_not_unique_slug(self):
-        """Нельзя создать две заметки с одинаковым slug"""
-        # Добавление первой заметки
-        note = Note.objects.create(
-            title="Заголовок",
-            text="Текст заметки",
-            slug="slug",
-            author=self.author,
-        )
-
-        # Добавление 2-й заметки
+    def test_user_can_create_note(self):
+        """Залогиненный пользователь может создавать заметки"""
         response = self.author_client.post(
             self.NOTE_ADD,
             data=self.FORM_DATA,
         )
+
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.FOUND,
+            msg=(
+                "При создание заметки должен быть переход "
+                "на страницу 'Завершено'",
+            ),
+        )
+        self.assertRedirects(
+            response,
+            self.notes_success,
+        )
+
+        note_count = Note.objects.count()
+        self.assertEqual(
+            note_count,
+            1,
+            msg="Должна быть добавлена заметка в базу данных",
+        )
+        note = Note.objects.all()[0]
+        for key in self.FORM_DATA.keys():
+            self.assertEqual(
+                note.__dict__.get(key),
+                self.FORM_DATA.get(key),
+                msg=f"Не совпадают значения полей: {key}",
+            )
+
+    def test_anonymous_user_cant_create_note(self):
+        """Анонимный пользователь не может добавлять заметки"""
+        response = self.client.post(
+            self.NOTE_ADD,
+            data=self.FORM_DATA,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.FOUND,
+            msg=(
+                "При создание заметки должен быть переход "
+                "на страницу 'Завершено'",
+            ),
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse("users:login")}?next={self.NOTE_ADD}",
+        )
+
+        note_count = Note.objects.count()
+        self.assertEqual(
+            note_count,
+            0,
+            msg="В базе не должно появиться записей",
+        )
+
+    def test_not_unique_slug(self):
+        """Нельзя создать две заметки с одинаковым slug"""
+        # Добавление первой заметки
+        duplicate_slug = "duplicate_slug"
+        note = Note.objects.create(
+            title="Заголовок",
+            text="Текст заметки",
+            slug=duplicate_slug,
+            author=self.author,
+        )
+
+        # Добавление 2-й заметки
+        form_data = dict(self.FORM_DATA)
+        form_data["slug"] = duplicate_slug
+        response = self.author_client.post(
+            self.NOTE_ADD,
+            data=form_data,
+        )
+
         self.assertFormError(
             response.context["form"],
             "slug",
             errors=(note.slug + WARNING),
         )
-        self.assertEqual(Note.objects.count(), 1)
+        self.assertEqual(
+            Note.objects.count(),
+            1,
+            msg=(
+                "При добавление дубликата заметки по полю "
+                f"'slug'={duplicate_slug} не должен добавляться."
+            ),
+        )
 
     def test_empty_slug(self):
+        """Если не указан slug он, формируется самостоятельно"""
         new_form_data = dict(self.FORM_DATA)
         new_form_data.pop("slug")
 
@@ -132,6 +170,8 @@ class TestLogicUpdateDelete(TestCase):
 
         cls.note = Note.objects.create(**cls.form_data)
 
+        cls.notes_success = reverse("notes:success")
+
     def test_update_note(self):
         """Тестирование обновление заметки"""
         form_data = {
@@ -165,7 +205,7 @@ class TestLogicUpdateDelete(TestCase):
                 self.author_client,
                 HTTPStatus.FOUND,
                 new_form_data,
-                reverse("notes:success"),
+                self.notes_success,
             ),
         ):
             with self.subTest(client=client, http_status=http_status):
@@ -212,7 +252,7 @@ class TestLogicUpdateDelete(TestCase):
                 self.author_client,
                 0,
                 HTTPStatus.FOUND,
-                reverse("notes:success"),
+                self.notes_success,
             ),
         ):
             with self.subTest(client=client, http_status=http_status):
