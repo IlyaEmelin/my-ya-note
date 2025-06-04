@@ -14,7 +14,6 @@ User = get_user_model()
 class TestLogiCreate(TestCase):
     """Тестирование логики создания заметок"""
 
-    NOTE_ADD = reverse("notes:add")
     FORM_DATA = {
         "title": "Заголовок",
         "text": "Текс заметки",
@@ -27,12 +26,13 @@ class TestLogiCreate(TestCase):
         cls.author_client = Client()
         cls.author_client.force_login(cls.author)
 
-        cls.notes_success = reverse("notes:success")
+        cls.url_notes_success = reverse("notes:success")
+        cls.url_note_add = reverse("notes:add")
 
     def test_user_can_create_note(self):
         """Залогиненный пользователь может создавать заметки"""
         response = self.author_client.post(
-            self.NOTE_ADD,
+            self.url_note_add,
             data=self.FORM_DATA,
         )
 
@@ -46,7 +46,7 @@ class TestLogiCreate(TestCase):
         )
         self.assertRedirects(
             response,
-            self.notes_success,
+            self.url_notes_success,
         )
 
         note_count = Note.objects.count()
@@ -66,7 +66,7 @@ class TestLogiCreate(TestCase):
     def test_anonymous_user_cant_create_note(self):
         """Анонимный пользователь не может добавлять заметки"""
         response = self.client.post(
-            self.NOTE_ADD,
+            self.url_note_add,
             data=self.FORM_DATA,
         )
 
@@ -80,7 +80,7 @@ class TestLogiCreate(TestCase):
         )
         self.assertRedirects(
             response,
-            f"{reverse("users:login")}?next={self.NOTE_ADD}",
+            f"{reverse("users:login")}?next={self.url_note_add}",
         )
 
         note_count = Note.objects.count()
@@ -105,7 +105,7 @@ class TestLogiCreate(TestCase):
         form_data = dict(self.FORM_DATA)
         form_data["slug"] = duplicate_slug
         response = self.author_client.post(
-            self.NOTE_ADD,
+            self.url_note_add,
             data=form_data,
         )
 
@@ -129,12 +129,12 @@ class TestLogiCreate(TestCase):
         new_form_data.pop("slug")
 
         response = self.author_client.post(
-            self.NOTE_ADD,
+            self.url_note_add,
             data=new_form_data,
         )
 
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
-        self.assertRedirects(response, reverse("notes:success"))
+        self.assertRedirects(response, self.url_notes_success)
         self.assertEqual(Note.objects.count(), 1)
         new_note = Note.objects.get()
         expected_slug = slugify(new_form_data["title"])

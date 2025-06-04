@@ -3,6 +3,7 @@ from http import HTTPStatus
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.test.client import Client
 
 from notes.models import Note
 
@@ -16,7 +17,12 @@ class TestRouter(TestCase):
     def setUpTestData(cls):
         """Установка тестовых данных"""
         cls.author = User.objects.create(username="Серега Пушкин")
+        cls.author_client = Client()
+        cls.author_client.force_login(cls.author)
+
         cls.user = User.objects.create(username="Иван Евтушенко")
+        cls.user_client = Client()
+        cls.user_client.force_login(cls.user)
 
         cls.slug_note = "slug_note"
         cls.note = Note.objects.create(
@@ -26,18 +32,35 @@ class TestRouter(TestCase):
             author=cls.author,
         )
 
+        cls.url_notes_home = reverse(viewname="notes:home")
+        cls.url_login = reverse("users:login")
+        cls.url_users_login = reverse(viewname="users:login")
+        cls.url_users_signup = reverse(viewname="users:signup")
+
+        cls.url_notes_list = reverse(viewname="notes:list")
+        cls.url_notes_add = reverse(viewname="notes:add")
+        cls.url_notes_edit = reverse(
+            viewname="notes:edit",
+            args=(cls.note.slug,),
+        )
+        cls.url_notes_detail = reverse(
+            viewname="notes:detail",
+            args=(cls.note.slug,),
+        )
+        cls.url_notes_delete = reverse(
+            viewname="notes:delete",
+            args=(cls.note.slug,),
+        )
+
     def test_pages_anonymous_availability(self):
         """Проверка доступных страниц для анонимных пользователей"""
         urls = (
-            "notes:home",
-            "users:login",
-            # Уроки сломаны поэтому эта страница не работает
-            # "users:logout",
-            "users:signup",
+            self.url_notes_home,
+            self.url_users_login,
+            self.url_users_signup,
         )
-        for url_name in urls:
-            with self.subTest(name=url_name):
-                url = reverse(viewname=url_name)
+        for url in urls:
+            with self.subTest(name=url):
                 response = self.client.get(url)
                 self.assertEqual(
                     response.status_code,
@@ -50,51 +73,46 @@ class TestRouter(TestCase):
         Проверка не доступных страниц для анонимных пользователей,
         и редирект на страницу аутентификации
         """
-        login_url = reverse("users:login")
         urls = (
-            ("notes:list", None),
-            ("notes:add", None),
-            ("notes:edit", (self.slug_note,)),
-            ("notes:detail", (self.slug_note,)),
-            ("notes:delete", (self.slug_note,)),
+            self.url_notes_list,
+            self.url_notes_add,
+            self.url_notes_edit,
+            self.url_notes_detail,
+            self.url_notes_delete,
         )
-        for url_name, args in urls:
-            with self.subTest(name=url_name):
-                url = reverse(url_name, args=args)
+        for url in urls:
+            with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertEqual(
                     response.status_code,
                     HTTPStatus.FOUND,
                     msg=f"Удалось попасть на страницу: {url}",
                 )
-                redirect_url = f"{login_url}?next={url}"
+                redirect_url = f"{self.url_login}?next={url}"
                 self.assertRedirects(
                     response,
                     redirect_url,
                     msg_prefix=(
-                        f"Не происходить редирект на страницу : {login_url}"
+                        "Не происходить "
+                        f"редирект на страницу : {self.url_login}"
                     ),
                 )
 
     def test_pages_authorized_user_availability(self):
         """Проверка доступности страниц авторизированным пользователям"""
         urls = (
-            ("notes:home", None),
-            ("users:login", None),
-            # Уроки сломаны поэтому эта страница не работает
-            # ("users:logout", None)
-            ("users:signup", None),
-            ("notes:list", None),
-            ("notes:add", None),
-            ("notes:edit", (self.slug_note,)),
-            ("notes:detail", (self.slug_note,)),
-            ("notes:delete", (self.slug_note,)),
+            self.url_notes_home,
+            self.url_users_login,
+            self.url_users_signup,
+            self.url_notes_list,
+            self.url_notes_add,
+            self.url_notes_edit,
+            self.url_notes_detail,
+            self.url_notes_delete,
         )
-        self.client.force_login(self.author)
-        for url_name, args in urls:
-            with self.subTest(name=url_name):
-                url = reverse(url_name, args=args)
-                response = self.client.get(url)
+        for url in urls:
+            with self.subTest(url=url):
+                response = self.author_client.get(url)
                 self.assertEqual(
                     response.status_code,
                     HTTPStatus.OK,
@@ -103,14 +121,15 @@ class TestRouter(TestCase):
 
     def test_availability_for_note_detail_and_edit_and_delete(self):
         """Проверка доступности страниц заметок автору и пользователю"""
-        users_statuses = (
-            (self.author, HTTPStatus.OK),
-            (self.user, HTTPStatus.NOT_FOUND),
-        )
-        for user, status in users_statuses:
-            self.client.force_login(user)
-            for url_name in ("notes:detail", "notes:edit", "notes:delete"):
-                with self.subTest(user=user, name=url_name):
-                    url = reverse(url_name, args=(self.slug_note,))
-                    response = self.client.get(url)
+        for client, status in (
+            (self.author_client, HTTPStatus.OK),
+            (self.user_client, HTTPStatus.NOT_FOUND),
+        ):
+            for url in (
+                self.url_notes_detail,
+                self.url_notes_edit,
+                self.url_notes_delete,
+            ):
+                with self.subTest(client=client, url=url):
+                    response = client.get(url)
                     self.assertEqual(response.status_code, status)

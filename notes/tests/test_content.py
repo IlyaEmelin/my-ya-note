@@ -14,7 +14,6 @@ class TestNotesList(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.notes_list_url = reverse("notes:list")
 
         cls.author = User.objects.create(username="Серега Пушкин")
         cls.author_client = Client()
@@ -33,6 +32,13 @@ class TestNotesList(TestCase):
             author=cls.author,
         )
 
+        cls.url_notes_list = reverse("notes:list")
+        cls.url_notes_add = reverse("notes:add")
+        cls.url_notes_edit = reverse(
+            viewname="notes:edit",
+            args=(cls.note.slug,),
+        )
+
     def test_notes_list_for_different_users(self):
         """Тестирование списка заметок для разных авторов"""
         for client, note_in_list in (
@@ -40,7 +46,7 @@ class TestNotesList(TestCase):
             (self.user_client, False),
         ):
             with self.subTest(client=client, note_in_list=note_in_list):
-                response = client.get(self.notes_list_url)
+                response = client.get(self.url_notes_list)
                 notes = response.context.get("object_list")
 
                 self.assertIsInstance(
@@ -59,11 +65,11 @@ class TestNotesList(TestCase):
 
     def test_pages_contains_form(self):
         """Тестирование форм создания и редактирования заметки"""
-        for name, args in (
-            ("notes:add", None),
-            ("notes:edit", (self.note.slug,)),
+        for url in (
+            self.url_notes_add,
+            self.url_notes_edit,
         ):
-            response = self.author_client.get(reverse(name, args=args))
+            response = self.author_client.get(url)
 
             self.assertIn(
                 "form",
