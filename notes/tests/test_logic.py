@@ -24,7 +24,7 @@ class TestLogiCreate(TestCase):
         cls.url_notes_success = reverse("notes:success")
         cls.url_note_add = reverse("notes:add")
 
-        cls.form_data = lambda: {
+        cls.form_data = {
             "title": "Заголовок",
             "text": "Текс заметки",
             "slug": "slug",
@@ -34,7 +34,7 @@ class TestLogiCreate(TestCase):
         """Залогиненный пользователь может создавать заметки"""
         response = self.author_client.post(
             self.url_note_add,
-            data=self.form_data(),
+            data=self.form_data,
         )
 
         self.assertEqual(
@@ -57,10 +57,10 @@ class TestLogiCreate(TestCase):
             msg="Должна быть добавлена заметка в базу данных",
         )
         note = Note.objects.get()
-        for key in self.form_data().keys():
+        for key in self.form_data.keys():
             self.assertEqual(
                 note.__dict__.get(key),
-                self.form_data().get(key),
+                self.form_data.get(key),
                 msg=f"Не совпадают значения полей: {key}",
             )
 
@@ -68,7 +68,7 @@ class TestLogiCreate(TestCase):
         """Анонимный пользователь не может добавлять заметки"""
         response = self.client.post(
             self.url_note_add,
-            data=self.form_data(),
+            data=self.form_data,
         )
 
         self.assertEqual(
@@ -101,10 +101,11 @@ class TestLogiCreate(TestCase):
             author=self.author,
         )
 
+        self.form_data["slug"] = "slug"
         # Добавление 2-й заметки
         response = self.author_client.post(
             self.url_note_add,
-            data=self.form_data(),
+            data=self.form_data,
         )
 
         self.assertFormError(
@@ -124,7 +125,7 @@ class TestLogiCreate(TestCase):
     def test_empty_slug(self):
         """Если не указан slug он, формируется самостоятельно"""
 
-        form_data = self.form_data()
+        form_data = self.form_data
         form_data.pop("slug")
         response = self.author_client.post(
             self.url_note_add,
@@ -135,7 +136,7 @@ class TestLogiCreate(TestCase):
         self.assertRedirects(response, self.url_notes_success)
         self.assertEqual(Note.objects.count(), 1)
         new_note = Note.objects.get()
-        expected_slug = slugify(self.form_data()["title"])
+        expected_slug = slugify(self.form_data["title"])
         self.assertEqual(new_note.slug, expected_slug)
 
 
