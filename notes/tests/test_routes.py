@@ -24,11 +24,10 @@ class TestRouter(TestCase):
         cls.user_client = Client()
         cls.user_client.force_login(cls.user)
 
-        cls.slug_note = "slug_note"
         cls.note = Note.objects.create(
             title="Заголовок",
             text="Текст",
-            slug=cls.slug_note,
+            slug="slug_note",
             author=cls.author,
         )
 
