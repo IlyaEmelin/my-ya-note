@@ -156,7 +156,7 @@ class TestLogicUpdateDelete(TestCase):
         cls.new_form_data = {
             "title": "Новый заголовок",
             "text": "Новый текс заметки",
-            "slug": "default_slug",
+            "slug": "new_default_slug",
         }
         cls.note = Note.objects.create(
             title="Заголовок",
