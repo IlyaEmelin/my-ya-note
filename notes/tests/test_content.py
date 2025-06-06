@@ -23,8 +23,6 @@ class TestNotesList(TestCase):
         cls.user_client = Client()
         cls.user_client.force_login(cls.user)
 
-        # all_notes = [Note(**dict(note_args)) for note_args in cls.__gen_note()]
-        # Note.objects.bulk_create(all_notes)
         cls.note = Note.objects.create(
             title="Заголовок",
             text="Текст заметки",
