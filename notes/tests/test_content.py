@@ -69,13 +69,14 @@ class TestNotesList(TestCase):
             self.url_notes_add,
             self.url_notes_edit,
         ):
-            response = self.author_client.get(url)
+            with self.subTest(url=url):
+                response = self.author_client.get(url)
 
-            self.assertIn(
-                "form",
-                response.context,
-                msg=(
-                    "на страницы создания и редактирования заметки "
-                    "передаются формы."
-                ),
-            )
+                self.assertIn(
+                    "form",
+                    response.context,
+                    msg=(
+                        "на страницы создания и редактирования заметки "
+                        "передаются формы."
+                    ),
+                )
